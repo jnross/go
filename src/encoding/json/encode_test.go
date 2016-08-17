@@ -611,3 +611,57 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
 		t.Errorf("Marshal map with text.Marshaler keys: got %#q, want %#q", b, want)
 	}
 }
+
+// Issue 16750
+
+type pointerError struct {
+	ID      int    `json:"id,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+func (self *pointerError) Error() string {
+	return fmt.Sprintf("%s(%v): %s", self.Name, self.ID, self.Message)
+}
+
+type structError struct {
+	ID      int    `json:"id,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+func (self structError) Error() string {
+	return fmt.Sprintf("%s(%v): %s", self.Name, self.ID, self.Message)
+}
+
+type result struct {
+	Success bool  `json:"success"`
+	Err     error `json:"error,omitempty"`
+}
+
+func TestMarshalNilTypedInterface(t *testing.T) {
+	var nullPointerError *pointerError = nil
+	var emptyStructError structError = structError{}
+	var res result = result{}
+
+	res.Err = nil
+	b, _ := Marshal(res)
+	want := `{"success":false}`
+	if string(b) != want {
+		t.Errorf("Marshal struct with typeless nil interface: got %#q, want %#q", b, want)
+	}
+
+	res.Err = nullPointerError
+	b, _ = Marshal(res)
+	want = `{"success":false}`
+	if string(b) != want {
+		t.Errorf("Marshal struct with typeless nil interface: got %#q, want %#q", b, want)
+	}
+
+	res.Err = emptyStructError
+	b, _ = Marshal(res)
+	want = `{"success":false,"error":{}}`
+	if string(b) != want {
+		t.Errorf("Marshal struct with typeless nil interface: got %#q, want %#q", b, want)
+	}
+}
